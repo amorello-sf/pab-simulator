@@ -1,0 +1,19 @@
+{
+  "name": "Salesforce PAB Practice Simulator",
+  "description": "240-question practice bank for the Salesforce Certified Platform App Builder exam (SU'26). React + Vite + Express.",
+  "keywords": ["salesforce", "certification", "study", "quiz", "react", "vite"],
+  "repository": "https://example.com/pab-simulator",
+  "stack": "heroku-24",
+  "buildpacks": [
+    { "url": "heroku/nodejs" }
+  ],
+  "env": {
+    "NPM_CONFIG_PRODUCTION": {
+      "description": "Keep devDependencies so Vite can build during release.",
+      "value": "false"
+    }
+  },
+  "formation": {
+    "web": { "quantity": 1, "size": "eco" }
+  }
+}
