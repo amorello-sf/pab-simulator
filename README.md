@@ -1,6 +1,6 @@
 # Salesforce PAB Practice Simulator — React edition
 
-240-question practice bank for the **Salesforce Certified Platform App Builder** exam (SU'26), built with **React + Vite** and served by a tiny **Express** app. Ready to host on **Heroku** (or any Node platform) and installable as a **PWA** on iOS / Android.
+240-question practice bank for the **Salesforce Certified Platform App Builder** exam (SU'26), built with **React + Vite** and served by a tiny **Express** app. Ready to host on **Render** (or any Node platform) and installable as a **PWA** on iOS / Android.
 
 The vanilla single-file version is still in `../pab-simulator/` if you need it offline.
 
@@ -23,56 +23,78 @@ npm install
 npm run dev          # Vite dev server on http://localhost:5173
 ```
 
-Production build + Express test:
+Production build + Express smoke test:
 
 ```bash
 npm run build        # emits ./dist
 npm start            # Express serves ./dist on $PORT (default 3000)
 ```
 
-## Deploy to Heroku
+## Deploy to Render (primary path)
 
-You need the [Heroku CLI](https://devcenter.heroku.com/articles/heroku-cli) installed and to be logged in (`heroku login`).
+The repo ships with a **Render Blueprint** (`render.yaml`). You need a free [Render](https://render.com) account and a git remote (GitHub / GitLab / Bitbucket).
 
-```bash
-cd OUTPUTS/pab-simulator-react
+### Option A — Blueprint (recommended, one-click)
 
-# 1. Initialize a git repo (Heroku deploys via git push)
-git init
-git add .
-git commit -m "PAB practice simulator — initial deploy"
+1. **Push this folder to a git repo.** From `OUTPUTS/pab-simulator-react/`:
 
-# 2. Create the Heroku app (or use an existing one)
-heroku create pab-simulator-yourname   # pick any unique name
+   ```bash
+   git init
+   git add .
+   git commit -m "PAB simulator — initial"
+   git branch -M main
+   git remote add origin https://github.com/YOUR-USER/pab-simulator.git
+   git push -u origin main
+   ```
 
-# 3. Keep devDependencies during build so Vite can compile
-heroku config:set NPM_CONFIG_PRODUCTION=false
+2. **Create the service in Render.** In the Render Dashboard click **New +** → **Blueprint**, select the repo, and confirm. Render reads `render.yaml` and provisions everything automatically:
+   - Runtime: Node 20
+   - Region: Frankfurt (change in `render.yaml` if you prefer a US / Asia region)
+   - Build: `npm ci --include=dev && npm run build`
+   - Start: `node server.js`
+   - Health check: `GET /`
+   - Auto-deploy on every push to `main`
 
-# 4. Push and let Heroku build
-git push heroku HEAD:main              # or "main:main" if your branch is already main
+3. **Wait for the first deploy** (~2–3 minutes). Render prints the public URL — something like `https://pab-simulator.onrender.com`. Open it and you're done.
 
-# 5. Open it
-heroku open
-```
+### Option B — Manual (no Blueprint)
 
-The `heroku-postbuild` npm script triggers `vite build` during release, then the `Procfile` (`web: node server.js`) starts Express, which serves `dist/` and falls back to `index.html` for SPA routes. Port comes from `$PORT`.
+If you'd rather not commit `render.yaml`, do it by hand:
 
-### One-click deploy button (optional)
+1. Push the repo.
+2. Render Dashboard → **New +** → **Web Service** → select the repo.
+3. Fill the form:
+   - **Runtime**: `Node`
+   - **Build command**: `npm ci --include=dev && npm run build`
+   - **Start command**: `node server.js`
+   - **Environment variable**: `NODE_VERSION=20`
+   - **Health check path**: `/`
+4. Pick region + plan (Free works — spins down after 15 min idle, cold-starts in ~30 s; Starter at $7/mo stays warm).
+5. **Create Web Service**.
 
-Add this to a public GitHub repo README to give collaborators a Deploy-to-Heroku button (relies on the included `app.json`):
+### Notes on the Free plan
 
-```markdown
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/YOUR-USER/YOUR-REPO)
-```
+- The service **sleeps after 15 minutes of inactivity** and cold-starts on the next request (~30 s wait). Fine for personal study, obviously not for hammering right before your exam. Upgrade to the **Starter** plan ($7/mo) to keep it warm.
+- HTTPS certificate + a `*.onrender.com` domain are included.
+- Auto-deploy on `git push origin main` is on by default.
 
-### Alternative hosts
+### Custom domain (optional)
 
-Any Node platform works out of the box: Fly.io, Render, Railway, Azure App Service, etc. Static-only hosts (Netlify, Vercel, Cloudflare Pages) also work — point them at `npm run build`, publish `dist/`, and enable SPA fallback to `index.html`. No server code needed in that case.
+Render Dashboard → your service → **Settings** → **Custom Domains** → add domain, then update the DNS record it shows you.
 
 ## Access from mobile
 
-- **Live on Heroku** — just open the URL in Safari / Chrome and tap **Share → Add to Home Screen** (iOS) or **⋮ → Install app** (Android). The manifest + apple-touch meta launch it full-screen.
-- **On your local Wi-Fi during dev** — run `npm run dev` and browse to `http://<your-mac-ip>:5173` from the phone (Vite is started with `--host`).
+- **Live on Render** — open the URL in Safari / Chrome and tap **Share → Add to Home Screen** (iOS) or **⋮ → Install app** (Android). The web manifest + apple-touch meta launch it full-screen with an app icon.
+- **On your local Wi-Fi during dev** — run `npm run dev` and browse to `http://<your-mac-ip>:5173` from the phone (Vite starts with `--host`).
+
+## Alternative hosts
+
+Any Node platform works with the same `server.js` + `Procfile`:
+- **Fly.io** — `flyctl launch` reads `Procfile` automatically.
+- **Railway** — connect the repo; Railway auto-detects Node + Procfile.
+- **Azure App Service (Node)** — Deploy from GitHub, configure `npm run build` as post-build.
+
+Static-only hosts (Netlify, Vercel, Cloudflare Pages) also work — point them at `npm run build`, publish `dist/`, enable SPA fallback to `index.html`. No server code needed in that case.
 
 ## Project structure
 
@@ -81,8 +103,10 @@ pab-simulator-react/
 ├── package.json         # scripts + engines pin (Node 20.x)
 ├── vite.config.js       # Vite + React plugin
 ├── server.js            # Express: static dist/ + SPA fallback + compression
-├── Procfile             # web: node server.js
-├── app.json             # Heroku config (buildpack + env)
+├── Procfile             # web: node server.js  (used by Render/Fly/Railway/Heroku)
+├── render.yaml          # Render Blueprint (one-click provision)
+├── app.json             # Heroku metadata (kept for portability; ignored by Render)
+├── .nvmrc               # Node 20 for hosts that honor it
 ├── index.html           # Vite entry
 ├── public/
 │   ├── manifest.webmanifest
@@ -111,6 +135,13 @@ cd ../pab-simulator && python3 build.py
 cp questions.json ../pab-simulator-react/src/data/questions.json
 cd ../pab-simulator-react && npm run build
 ```
+
+## Troubleshooting
+
+- **Render build fails with `vite: not found`** → your build command dropped `--include=dev`. Set it back to `npm ci --include=dev && npm run build`. (Vite lives in `devDependencies` and Render/npm skip devDeps when `NODE_ENV=production`.)
+- **First response after a while is slow** → free-plan cold start. Upgrade or ping the URL periodically.
+- **Old service worker caching old content** → the app doesn't register a service worker, so a hard refresh (Cmd/Ctrl-Shift-R) is enough.
+- **Locally `npm start` says `dist/ not found`** → run `npm run build` first.
 
 ## Disclaimer
 

@@ -1,0 +1,18 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Push this repo, then in Render click "New +" → "Blueprint" and point at the repo.
+# Render will read this file and create the service automatically.
+services:
+  - type: web
+    name: pab-simulator
+    runtime: node
+    plan: free                # bump to "starter" ($7/mo) if you don't want cold starts after 15 min idle
+    region: frankfurt         # closest EU region — swap to oregon / virginia / singapore / ohio as you prefer
+    branch: main              # branch Render will auto-deploy from
+    autoDeploy: true
+    healthCheckPath: /
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: node server.js
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      # PORT is injected by Render automatically; server.js already reads process.env.PORT.
